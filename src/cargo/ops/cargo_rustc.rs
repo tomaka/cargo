@@ -201,6 +201,8 @@ fn rustc(root: &Path, target: &Target,
     let primary = cx.primary;
     let rustc = prepare_rustc(root, target, crate_types, cx);
 
+    log!(5, "command={}", rustc);
+
     proc() {
         if primary {
             rustc.exec().map_err(|err| human(err.to_str()))
@@ -302,6 +304,8 @@ fn execute(config: &mut Config,
             }
         }
     }
+
+    log!(5, "rustc jobs completed");
 
     Ok(())
 }

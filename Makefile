@@ -66,13 +66,13 @@ target/tests/test-integration: $(HAMCREST) $(TEST_SRC) $(BIN_TARGETS)
 
 target/tests/test-unit: $(TOML) $(HAMCREST) $(SRC) $(HAMMER)
 	mkdir -p target/tests
-	$(RUSTC) --test $(RUSTC_FLAGS) $(TEST_DEPS) -o $@ src/cargo/lib.rs
+	$(RUSTC) --test -g $(RUSTC_FLAGS) $(TEST_DEPS) -o $@ src/cargo/lib.rs
 
 test-unit: target/tests/test-unit
 	target/tests/test-unit $(only)
 
 test-integration: target/tests/test-integration
-	$< $(only)
+	$< --nocapture $(only)
 
 test: test-unit test-integration style
 

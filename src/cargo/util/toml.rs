@@ -163,8 +163,8 @@ impl TomlManifest {
             };
 
             // Collect the deps
-            try!(process_dependencies(&mut cx, self.dependencies.as_ref()));
-            try!(process_dependencies(&mut cx, self.dev_dependencies.as_ref()));
+            try!(process_dependencies(&mut cx, false, self.dependencies.as_ref()));
+            try!(process_dependencies(&mut cx, true, self.dev_dependencies.as_ref()));
         }
 
         let project = self.project.as_ref().or_else(|| self.package.as_ref());
@@ -184,7 +184,7 @@ impl TomlManifest {
     }
 }
 
-fn process_dependencies<'a>(cx: &mut Context<'a>,
+fn process_dependencies<'a>(cx: &mut Context<'a>, dev: bool,
                             new_deps: Option<&HashMap<String, TomlDependency>>)
                             -> CargoResult<()> {
     match new_deps {
@@ -221,9 +221,13 @@ fn process_dependencies<'a>(cx: &mut Context<'a>,
                     }
                 };
 
-                cx.deps.push(try!(Dependency::parse(n.as_slice(),
-                                                 version.as_ref().map(|v| v.as_slice()),
-                                                 &source_id)))
+                let mut dep = try!(Dependency::parse(n.as_slice(),
+                               version.as_ref().map(|v| v.as_slice()),
+                               &source_id));
+
+                if dev { dep = dep.as_dev() }
+
+                cx.deps.push(dep)
             }
         }
         None => ()
