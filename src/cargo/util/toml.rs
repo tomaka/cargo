@@ -10,7 +10,7 @@ use semver;
 use serialize::{Decodable, Decoder};
 
 use core::{SourceId, GitKind};
-use core::manifest::{LibKind, Lib, Dylib, Profile};
+use core::manifest::{LibKind, Lib, Dylib, Profile, BuildTarget};
 use core::{Summary, Manifest, Target, Dependency, PackageId};
 use core::package_id::Metadata;
 use util::{CargoResult, Require, human, ToUrl, ToSemver};
@@ -203,6 +203,7 @@ pub struct TomlManifest {
     package: Option<Box<TomlProject>>,
     project: Option<Box<TomlProject>>,
     profile: Option<TomlProfiles>,
+    target: Option<TomlBuildTarget>,
     lib: Option<ManyOrOne<TomlLibTarget>>,
     bin: Option<Vec<TomlBinTarget>>,
     example: Option<Vec<TomlExampleTarget>>,
@@ -468,6 +469,38 @@ impl TomlManifest {
         };
         let exclude = project.exclude.clone().unwrap_or(Vec::new());
 
+        let build_target: Option<CargoResult<BuildTarget>> = self.target.as_ref().map(|target| {
+            use core::manifest::{SpecsExtend, SpecsCustom};
+
+            let specs = match (&target.extend, &target.specifications, &target.std) {
+                (&None, &None, &None) =>
+                    return Err(human("Either `extend` or `specifications` must be specified")),
+                (&Some(ref extend), &None, &None) => SpecsExtend(extend.clone()),
+                (&None, &Some(ref specs), std) => SpecsCustom(specs.to_path(), std.clone()),
+                _ => return
+                    Err(human("`std` and `specifications` are mutually exclusive with `extend`")),
+            };
+
+            Ok(BuildTarget::new(
+                specs,
+                target.ar.clone(),
+                target.linker.clone(),
+                target.bin.as_ref().and_then(|t| t.postbuild.clone()),
+                target.bin.as_ref().and_then(|t| t.emit.clone()),
+                target.rlib.as_ref().and_then(|t| t.postbuild.clone()),
+                target.rlib.as_ref().and_then(|t| t.emit.clone()),
+                target.dylib.as_ref().and_then(|t| t.postbuild.clone()),
+                target.dylib.as_ref().and_then(|t| t.emit.clone()),
+                target.staticlib.as_ref().and_then(|t| t.postbuild.clone()),
+                target.staticlib.as_ref().and_then(|t| t.emit.clone())
+            ))
+        });
+        let build_target = match build_target {
+            None => None,
+            Some(Ok(val)) => Some(val),
+            Some(Err(err)) => return Err(err)
+        };
+
         let summary = try!(Summary::new(pkgid, deps,
                                         self.features.clone()
                                             .unwrap_or(HashMap::new())));
@@ -477,7 +510,8 @@ impl TomlManifest {
                                          layout.root.join("doc"),
                                          sources,
                                          build,
-                                         exclude);
+                                         exclude,
+                                         build_target);
         if used_deprecated_lib {
             manifest.add_warning(format!("the [[lib]] section has been \
                                           deprecated in favor of [lib]"));
@@ -820,4 +854,23 @@ fn normalize(libs: &[TomlLibTarget],
                      }});
 
     ret
+}
+
+#[deriving(Decodable, Show, Clone)]
+struct TomlBuildTarget {
+    extend: Option<String>,
+    specifications: Option<TomlPathValue>,
+    std: Option<String>,
+    ar: Option<String>,
+    linker: Option<String>,
+    bin: Option<TomlBuildTargetBin>,
+    rlib: Option<TomlBuildTargetBin>,
+    dylib: Option<TomlBuildTargetBin>,
+    staticlib: Option<TomlBuildTargetBin>,
+}
+
+#[deriving(Decodable, Show, Clone)]
+struct TomlBuildTargetBin {
+    postbuild: Option<String>,
+    emit: Option<String>,
 }

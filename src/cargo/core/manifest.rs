@@ -25,6 +25,7 @@ pub struct Manifest {
     build: Vec<String>,
     warnings: Vec<String>,
     exclude: Vec<String>,
+    build_target: Option<BuildTarget>,
 }
 
 impl Show for Manifest {
@@ -333,11 +334,62 @@ impl Show for Target {
     }
 }
 
+#[deriving(Show, Clone, Hash, PartialEq, Encodable)]
+pub struct BuildTarget {
+    specs: BuildTargetSpecs,
+    ar: Option<String>,
+    linker: Option<String>,
+    bin: BuildTargetBin,
+    rlib: BuildTargetBin,
+    dylib: BuildTargetBin,
+    staticlib: BuildTargetBin,
+}
+
+#[deriving(Clone, Hash, PartialEq, Encodable)]
+pub enum BuildTargetSpecs {
+    SpecsExtend(String),
+    SpecsCustom(Path, Option<String>),
+}
+
+impl Show for BuildTargetSpecs {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            &SpecsExtend(ref val) =>
+                write!(f, "extend({})", val),
+            &SpecsCustom(ref val, ref std) =>
+                write!(f, "custom(specs={}, std={})", val.display(), std),
+        }
+    }
+}
+
+#[deriving(Clone, Hash, PartialEq, Encodable)]
+pub struct BuildTargetBin {
+    postbuild: Option<String>,
+    emit: Option<String>,
+}
+
+impl Show for BuildTargetBin {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match (&self.postbuild, &self.emit) {
+            (&Some(ref postbuild), &Some(ref emit)) => 
+                write!(f, "(postbuild={}, emit={})", postbuild, emit),
+            (&Some(ref postbuild), &None) => 
+                write!(f, "(postbuild={})", postbuild),
+            (&None, &Some(ref emit)) => 
+                write!(f, "(emit={})", emit),
+            (&None, &None) => 
+                write!(f, "()")
+        }
+        
+    }
+}
+
 
 impl Manifest {
     pub fn new(summary: Summary, targets: Vec<Target>,
                target_dir: Path, doc_dir: Path, sources: Vec<SourceId>,
-               build: Vec<String>, exclude: Vec<String>) -> Manifest {
+               build: Vec<String>, exclude: Vec<String>, build_target: Option<BuildTarget>)
+               -> Manifest {
         Manifest {
             summary: summary,
             authors: Vec::new(),
@@ -348,6 +400,7 @@ impl Manifest {
             build: build,
             warnings: Vec::new(),
             exclude: exclude,
+            build_target: build_target,
         }
     }
 
@@ -393,6 +446,10 @@ impl Manifest {
 
     pub fn get_build(&self) -> &[String] {
         self.build.as_slice()
+    }
+
+    pub fn get_build_target(&self) -> Option<&BuildTarget> {
+        self.build_target.as_ref()
     }
 
     pub fn add_warning(&mut self, s: String) {
@@ -530,5 +587,69 @@ impl Target {
             },
             BinTarget => vec!("bin")
         }
+    }
+}
+
+impl BuildTarget {
+    pub fn new(specs: BuildTargetSpecs, ar: Option<String>, linker: Option<String>,
+               bin_postbuild: Option<String>, bin_emit: Option<String>,
+               rlib_postbuild: Option<String>, rlib_emit: Option<String>,
+               dylib_postbuild: Option<String>, dylib_emit: Option<String>,
+               staticlib_postbuild: Option<String>, staticlib_emit: Option<String>)
+               -> BuildTarget {
+
+        BuildTarget {
+            specs: specs,
+            ar: ar,
+            linker: linker,
+            bin: BuildTargetBin { postbuild: bin_postbuild, emit: bin_emit },
+            rlib: BuildTargetBin { postbuild: rlib_postbuild, emit: rlib_emit },
+            dylib: BuildTargetBin { postbuild: dylib_postbuild, emit: dylib_emit },
+            staticlib: BuildTargetBin { postbuild: staticlib_postbuild, emit: staticlib_emit },
+        }
+    }
+
+    pub fn get_specs(&self) -> &BuildTargetSpecs {
+        &self.specs
+    }
+
+    pub fn get_ar(&self) -> Option<&String> {
+        self.ar.as_ref()
+    }
+
+    pub fn get_linker(&self) -> Option<&String> {
+        self.linker.as_ref()
+    }
+
+    pub fn get_bin_postbuild(&self) -> Option<&String> {
+        self.bin.postbuild.as_ref()
+    }
+
+    pub fn get_bin_emit(&self) -> Option<&String> {
+        self.bin.emit.as_ref()
+    }
+
+    pub fn get_rlib_postbuild(&self) -> Option<&String> {
+        self.rlib.postbuild.as_ref()
+    }
+
+    pub fn get_rlib_emit(&self) -> Option<&String> {
+        self.rlib.emit.as_ref()
+    }
+
+    pub fn get_dylib_postbuild(&self) -> Option<&String> {
+        self.dylib.postbuild.as_ref()
+    }
+
+    pub fn get_dylib_emit(&self) -> Option<&String> {
+        self.dylib.emit.as_ref()
+    }
+
+    pub fn get_staticlib_postbuild(&self) -> Option<&String> {
+        self.staticlib.postbuild.as_ref()
+    }
+
+    pub fn get_staticlib_emit(&self) -> Option<&String> {
+        self.staticlib.emit.as_ref()
     }
 }
