@@ -58,6 +58,7 @@ macro_rules! each_subcommand( ($macro:ident) => ({
     $macro!(fetch)
     $macro!(generate_lockfile)
     $macro!(git_checkout)
+    $macro!(install_target)
     $macro!(locate_project)
     $macro!(login)
     $macro!(new)

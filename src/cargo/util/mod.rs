@@ -15,6 +15,7 @@ pub use self::to_semver::ToSemver;
 pub use self::vcs::{GitRepo, HgRepo};
 pub use self::sha256::Sha256;
 
+pub mod build_targets;
 pub mod graph;
 pub mod process_builder;
 pub mod config;

@@ -42,6 +42,10 @@ impl<'a> Config<'a> {
 
     pub fn home(&self) -> &Path { &self.home_path }
 
+    pub fn build_targets_path(&self) -> Path {
+        self.home_path.join(".cargo").join("targets")
+    }
+
     pub fn git_db_path(&self) -> Path {
         self.home_path.join(".cargo").join("git").join("db")
     }
